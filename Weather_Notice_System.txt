@@ -1,0 +1,84 @@
+#define WIFI_NAME "Home_net"
+#define WIFI_PASSWORD "dhaka@2345"
+#define DEVICE_ID 1 
+#define DEVICE_NAME "Prapti"
+#define TOKEN "Add Token"
+#define btn D1  
+
+#include<RemoteMe.h>
+#include<RemoteMeSocketConnector.h>
+#include<ESP8266WiFi.h>
+#include<ESP8266WiFiMulti.h>
+#include<LiquidCrystal.h> 
+
+LiquidCrystal lcd(D2, D3, D5, D6, D7, D8);  
+
+
+int16_t i, i1, i2, temp, pres;
+int32_t subs, views;
+String hr; 
+
+long lastDebounceTime = 0, debounceDelay = 50;
+
+ESP8266WiFiMulti WiFiMulti;
+RemoteMe& remoteMe = RemoteMe::getInstance(TOKEN, DEVICE_ID);
+
+void onViewsChange(int32_t i) 
+{
+    views = i; //Storing views in variable 'views'
+}
+
+void onWeatherChange(int16_t i1, int16_t i2,String s1,String s2) 
+{
+    temp = i1; //storing temperature  
+    pres = i2; //Storing Pressure 
+}
+
+void weather()
+{
+  //Display weather info.
+  Serial.printf("Temparature : %d °C\n", temp);
+  Serial.printf("Pressure : %d Pa\n", pres);
+  lcd.clear();
+  lcd.printf("Temperature : %d", temp);
+  lcd.setCursor(0,1);
+  lcd.printf("Pressure : %d", pres);
+  lcd.setCursor(0,0);
+}
+
+void setup() 
+{
+    Serial.begin(9600);
+    lcd.begin(16, 2);
+    pinMode(btn, INPUT);
+    
+    WiFiMulti.addAP(WIFI_NAME, WIFI_PASSWORD);
+    while (WiFiMulti.run() != WL_CONNECTED) 
+    {
+        delay(100);
+    }
+    remoteMe.getVariables()->observeInteger("Subscribers" ,onSubscribersChange);
+    remoteMe.getVariables()->observeInteger("Views" ,onViewsChange);
+    remoteMe.getVariables()->observeSmallInteger2Text2("Weather" ,onWeatherChange);
+    remoteMe.sendRegisterDeviceMessage(DEVICE_NAME);
+    Serial.print("Connected...");
+    lcd.print("Connected...");
+}
+
+void loop() 
+{
+  int btn_state = LOW; 
+  static int flag = 0; 
+  
+     btn_state = digitalRead(btn); //button input is read.
+
+     if((millis() - lastDebounceTime) > debounceDelay) 
+     {
+       if((btn_state == HIGH) && (flag == 0)) //if button is pressed & flag is 0
+       {
+         weather(); //show weather data
+         flag = 1; 
+       }
+     }
+    remoteMe.loop();
+}
